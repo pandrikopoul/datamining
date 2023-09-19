@@ -1,63 +1,111 @@
 import numpy as np
+import binarytree as bt
 
+# importing the data
+#credit_data = np.genfromtxt('C:/Users/panos/Downloads/credit.txt', delimiter=',', skip_header=True)
 credit_data = np.genfromtxt('C:/Users/panos/Downloads/credit.txt', delimiter=',', skip_header=True)
-array = np.array([1,0,1,1,1,0,0,1,1,0,1])
+class Tree_Node:
+    def __init__(self,x,current_impurity,split_point):
+        self.current_data = x
+        self.current_impurity = current_impurity
+        self.split_point = (split_point.point, split_point.attribute_index)
+        self.left = None
+        self.right = None
 
-sorted = credit_data[credit_data[:,0].argsort()]
-#print(sorted)
+def tree_grow(x, y, nmin, minleaf, nfeat):
+    """
+    Generating the "best" classification tree with the Gini-index impurity calculation
+    :param x: (2-dimensional array) : Data matrix
+    :param y: (1-dimensional binary array) : Class label
+    :param nmin: (int) : Number of observations that a node must contain at least in order to be split
+    :param minleaf: (int) : Number of observations required for a leaf node in order to become leaf
+    :param nfeat: (int) : Number of features that should be considered for each split
+    :return:
+    (Tree type) :The generated tree
+    """
+    curr_class = y
+    root_impurity= impurity(y)
+    root = Tree_Node(x,root_impurity,)
+    print(root)
 
-def impurity(arr):
-     one = np.count_nonzero(arr==1)
-     pZero = np.count_nonzero(arr==0)/len(arr)
-     res = pZero*(1-pZero)
+    return
 
-     return res
 
-def bestsplit(attribute,clas): # mesures the quality of a numerical attribute for each of the split point
+def tree_pred(x, tr) -> np.array(int):
+    """
+    Generating the class labels for the given data with the given tree
+    :param x: (2-dimensional array) : Data matrix
+    :param tr: (tree object) : A tree created with the function "tree_grow"
+    :return:
+    (1-dimensional binary array) :  predicted class labels for the cases in x
+    """
+    return
 
-     attribute_sorted = np.sort(np.unique(attribute))
 
-     len_of_sorted_atribute = len(attribute_sorted)
-     income_splitpoints = (attribute_sorted[0:len_of_sorted_atribute-1] + attribute_sorted[1:len_of_sorted_atribute]) / 2 # find the split points
+def impurity(curr_class) -> float:
+    """
+    Calculating the impurity of the current feature according to Gini-index
+    :param curr_class: (1-dimensional float array) : The desire class
+    :return:
+    (float) : Returning the impurity of the given array
+    """
+    if len(curr_class) == 0:
+        return 0
+    zero_count = np.count_nonzero(curr_class == 0) / len(curr_class)
+    current_impurity = zero_count * (1 - zero_count)
+    return current_impurity
 
-     totalIm = impurity(clas)
-     # array to store all the slit points and their Quality score
-     dtype = np.dtype([('SplitPoint', float), ('SplitQuality', float)])
-     Split_Quality_array = np.array([], dtype=dtype)
-    # print(income_splitpoints)
-     for i in income_splitpoints:
-         # print(i)
-          imLowinput =clas[attribute < i]
 
-          imHighinput = clas[attribute > i]
+def best_split(attribute, cur_class):
+    """
+    Calculating the best possible split point for the current attribute with the corresponding classification
+    :param attribute: (1-dimensional float array) : The candidate attribute
+    :param cur_class: (1-dimensional float array) : The class distribution
+    :return:
+    (float) : The best split point for the candidate attribute
+    (float) : The quality value of this point
+    """
+    sorted_attribute = np.sort(np.unique(attribute))
+    len_sorted_attribute = len(sorted_attribute)
+    possible_split_points = (sorted_attribute[0:len_sorted_attribute - 1] + sorted_attribute[
+                                                                            1:len_sorted_attribute]) / 2
+    total_impurity = impurity(cur_class)
+    dtype = np.dtype([('split_point', float), ('split_quality', float)])
+    split_quality_array = np.array([], dtype=dtype)
+    len_cur_class = len(cur_class)
 
-          proportion = len(imLowinput)/len(clas)
-          proportion1 = len(imHighinput) / len(clas)
+    # using the calculation for the current quality:
+    # total quality = TQ, total impurity = TI,
+    # impurity of before the split = IBS, proportion of before the split = PBS,
+    # impurity of after the split = IAS, proportion of after the split = PAS
+    # TQ = TI - ( (IBS) * (PBS) + (IAS) * (PAS) )
+    # Searching for the best quality for the selection of the best split point
+    for i in possible_split_points:
+        impurity_arr_below_split_point = cur_class[attribute < i]
+        impurity_arr_above_split_point = cur_class[attribute > i]
+        proportion_below_split_point = len(impurity_arr_below_split_point) / len_cur_class
+        proportion_above_split_point = len(impurity_arr_above_split_point) / len_cur_class
+        impurity_below_split_point = impurity(impurity_arr_below_split_point) * proportion_below_split_point
+        impurity_above_split_point = impurity(impurity_arr_above_split_point) * proportion_above_split_point
+        cur_quality = total_impurity - (impurity_below_split_point + impurity_above_split_point)
 
-          impurityl=impurity(imLowinput)*proportion
-          impurityh = impurity(imHighinput) *proportion1
-
-          q= totalIm - (impurityl+impurityh)
-          S_Q_A_Row = (i,q)
-          Split_Quality_array= np.append(Split_Quality_array, np.array([S_Q_A_Row],dtype=dtype))
-    # print(Split_Quality_array)
-     max_quality= np.max(Split_Quality_array["SplitQuality"])
-     bestsplitPoint = 0
-   #  print(max_quality)
-     for j in range(0, len(Split_Quality_array)):
-          if Split_Quality_array["SplitQuality"][j] == max_quality : bestsplitPoint = Split_Quality_array["SplitPoint"][j]
-
-    # print("This is the best Split point : " + str(bestsplitPoint))
-     return  bestsplitPoint,max_quality
-
+        split_quality_array_row_data = (i, cur_quality)
+        split_quality_array = np.append(split_quality_array, np.array([split_quality_array_row_data], dtype=dtype))
+    best_quality = np.max(split_quality_array["split_quality"])
+    best_split_point = 0
+    # finding the corresponding split point to the best quality
+    for i in range(0, len(split_quality_array)):
+        if split_quality_array["split_quality"][i] == best_quality:
+            best_split_point = split_quality_array["split_point"][i]
+    return best_split_point, best_quality
 
 print("--------------------------------------------------------------")
-max_fit = (0,bestsplit(credit_data[:,0],credit_data[:,5]))
+max_fit = (0,best_split(credit_data[:,0],credit_data[:,5]))
 for i in range(1,len(credit_data[0])-1):
-     cur_fit = (i,bestsplit(credit_data[:,i],credit_data[:,5]))
+     cur_fit = (i,best_split(credit_data[:,i],credit_data[:,5]))
      if (cur_fit[1][1] > max_fit[1][1]):
          max_fit = cur_fit
-     print("Attribute in column : "+str(i)+" split point and quality :"+str(bestsplit(credit_data[:,i],credit_data[:,5])))
+     print("Attribute in column : "+str(i)+" split point and quality :"+str(best_split(credit_data[:,i],credit_data[:,5])))
 
 print("\nBEST choice Attribute in column : "+str(max_fit[0])+" split point and quality :"+str(max_fit[1]))
 
@@ -71,9 +119,4 @@ print("\nBEST choice Attribute in column : "+str(max_fit[0])+" split point and q
 nmin=2
 minleaf=1
 #def tree_grow(x,y,nmin,minleaf,nfeat):
-
-
-
-
-
-
+hvgjvhjgk = tree_grow(credit_data,credit_data[:,5],0,0,0)
